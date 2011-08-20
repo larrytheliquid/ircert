@@ -78,12 +78,14 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
 Ltac ifs :=
 repeat (match goal with
   | [ |- context[if ?x then _ else _] ] => destruct x
-end); try (autorewrite with ircert in *); auto.
+  | [ H : context[if ?x then _ else _] |- _ ] => destruct x
+  | [ H : context[in_users ?usr ?usrs] |- _ ] => destruct (in_users usr usrs)
+end); try (autorewrite with ircert in *); crush.
 
 Ltac cases' :=
 intros; match goal with
   | [ x : State |- _ ] => induction x
-  | [ x : Response |- _ ] => induction x
+  | [ x : Response |- _ ] => destruct x
   | [ x : Users |- _ ] => induction x
 end.
 
@@ -101,13 +103,11 @@ Qed. Hint Rewrite inside : ircert.
 Lemma map_inside : forall usr chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr usr chn) (map (fun x => EVN_JOIN x usr chn) usrs) = true.
-cases; ifs. destruct (in_users usr usrs); crush. destruct (usr_eq usr a); crush.
+cases; ifs.
 Qed.
 
 Lemma fooooo2 usr chn xs :
   in_responses (EVN_JOIN usr usr chn) (join_channel usr chn xs) = true.
 cases; ifs. 
 Qed.
-
-
 
