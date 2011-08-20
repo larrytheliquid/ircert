@@ -56,6 +56,14 @@ Fixpoint members (chn:Channel) (xs:State) : Users :=
 Fixpoint in_channel (usr:User) (chn:Channel) (xs:State) : bool :=
   in_users usr (members chn xs).
 
+Fixpoint in_responses (r:Response) (rs:Responses) : bool :=
+  match rs with
+    | nil => false
+    | r' :: rs' => if rsp_eq r r'
+      then true
+      else in_responses r rs'
+  end.
+
 Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
   match xs with
     | nil => EVN_JOIN usr usr chn :: nil
@@ -70,15 +78,25 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
 Ltac ifs :=
 repeat (match goal with
   | [ |- context[if ?x then _ else _] ] => destruct x
-end); auto.
+end); try (autorewrite with ircert); auto.
 
 Ltac cases :=
 intros; match goal with
   | [ x : State |- _ ] => induction x
+  | [ x : Response |- _ ] => induction x
 end; crush.
 
 Lemma fooooo usr chn xs :
   join_channel usr chn xs = (EVN_JOIN usr usr chn) :: nil.
+cases; ifs.
+Qed.
+
+Lemma inside : forall e, in_responses e (e :: nil) = true.
+cases; ifs.
+Qed. Hint Rewrite inside : ircert.
+
+Lemma fooooo2 usr chn xs :
+  in_responses (EVN_JOIN usr usr chn) (join_channel usr chn xs) = true.
 cases; ifs.
 Qed.
 
