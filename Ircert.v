@@ -53,7 +53,7 @@ Fixpoint members (chn:Channel) (xs:State) : Users :=
       else members chn xs'
   end.
 
-Fixpoint in_channel (usr:User) (chn:Channel) (xs:State) : bool :=
+Definition in_channel (usr:User) (chn:Channel) (xs:State) : bool :=
   in_users usr (members chn xs).
 
 Fixpoint in_responses (r:Response) (rs:Responses) : bool :=
@@ -68,46 +68,86 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
   match xs with
     | nil => EVN_JOIN usr usr chn :: nil
     | (chn' , usrs) :: xs' => if chn_eq chn chn' 
-      then EVN_JOIN usr usr chn :: nil
+      then (map (fun x => EVN_JOIN x usr chn) (usr :: usrs))
       else
         match join_channel usr chn xs' with
           | es => es
         end
   end.
 
-Ltac ifs :=
-repeat (match goal with
+Ltac ifs' := repeat (match goal with
   | [ |- context[if ?x then _ else _] ] => destruct x
   | [ H : context[if ?x then _ else _] |- _ ] => destruct x
   | [ H : context[in_users ?usr ?usrs] |- _ ] => destruct (in_users usr usrs)
-end); try (autorewrite with ircert in *); crush.
+end).
+
+Ltac ifs :=
+ifs'; try (autorewrite with ircert in *); crush.
 
 Ltac cases' :=
-intros; match goal with
+intros; try (match goal with
   | [ x : State |- _ ] => induction x
   | [ x : Response |- _ ] => destruct x
   | [ x : Users |- _ ] => induction x
-end.
+end).
 
 Ltac cases := cases'; crush.
-
-Lemma fooooo usr chn xs :
-  join_channel usr chn xs = (EVN_JOIN usr usr chn) :: nil.
-cases; ifs.
-Qed.
 
 Lemma inside : forall e, in_responses e (e :: nil) = true.
 cases; ifs.
 Qed. Hint Rewrite inside : ircert.
 
-Lemma map_inside : forall usr chn usrs,
+Lemma when_outside : forall usr chn,
+  in_responses (EVN_JOIN usr usr chn) (EVN_JOIN usr usr chn :: nil) = true.
+cases; ifs.
+Qed. Hint Rewrite when_outside : ircert.
+
+Lemma when_inside : forall usr chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr usr chn) (map (fun x => EVN_JOIN x usr chn) usrs) = true.
 cases; ifs.
+Qed. Hint Rewrite when_inside : ircert.
+
+Lemma if_in_chn_then_in_users : forall usr chn xs,
+  in_channel usr chn xs = true ->
+  in_users usr (members chn xs) = true.
+intros. auto.
+Qed. Hint Rewrite if_in_chn_then_in_users : ircert.
+
+Lemma omg : forall chn (xs ys:Users),
+  (if chn_eq chn chn then xs else ys) = xs.
+cases; ifs.
+Qed. Hint Rewrite omg : ircert.
+
+Lemma hmm : forall usr chn usrs xs,
+  in_channel usr chn ((chn, usrs) :: xs) = true ->
+  in_users usr usrs = true.
+intros. unfold in_channel in H. simpl in H. autorewrite with ircert in H. assumption.
+Qed. Hint Rewrite hmm : ircert.
+Check map.
+
+Lemma one_map : forall A B (f : A -> B) (x:A) (xs:list A),
+  map f (x :: xs) = f x :: map f xs.
+crush.
 Qed.
 
-Lemma fooooo2 usr chn xs :
+Lemma moar : forall r rs,
+  in_responses r (r :: rs) = true.
+crush; ifs.
+Qed.
+
+Lemma lemzzz : forall usr chn usrs,
+  in_responses (EVN_JOIN usr usr chn)
+  (map (fun x => EVN_JOIN x usr chn) (usr :: usrs)) = true.
+intros. rewrite one_map. apply moar.
+Qed.
+
+Theorem joining_user_gets_join_notice usr chn xs :
   in_responses (EVN_JOIN usr usr chn) (join_channel usr chn xs) = true.
-cases; ifs. 
+induction xs.
+simpl join_channel. apply when_outside.
+simpl join_channel. destruct a.
+  destruct (chn_eq chn c).
+  apply lemzzz.
+  assumption.
 Qed.
-
