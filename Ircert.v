@@ -75,19 +75,19 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
         end
   end.
 
-Ltac ifs' := repeat (match goal with
-  | [ |- context[if ?x then _ else _] ] => destruct x
-  | [ H : context[if ?x then _ else _] |- _ ] => destruct x
-end).
-
 Ltac step :=
   match goal with
     | [ |- ?x ] => congruence
     | [ |- ?x ] => auto
   end.
 
+Ltac ifs' := repeat (match goal with
+  | [ |- context[if ?x then _ else _] ] => destruct x
+  | [ H : context[if ?x then _ else _] |- _ ] => destruct x
+end).
+
 Ltac ifs :=
-ifs'; try (autorewrite with ircert in *); crush.
+ifs'; try (autorewrite with ircert in *); step.
 
 Ltac cases' :=
 intros; try (match goal with
@@ -96,21 +96,23 @@ intros; try (match goal with
   | [ x : Users |- _ ] => induction x
 end).
 
-Ltac cases := cases'; crush.
+Ltac cases := cases'; simpl in *; step.
+
+Ltac cert := cases; ifs.
 
 Lemma inside : forall e, in_responses e (e :: nil) = true.
-cases; ifs.
+cert.
 Qed. Hint Rewrite inside : ircert.
 
 Lemma when_outside : forall usr chn,
   in_responses (EVN_JOIN usr usr chn) (EVN_JOIN usr usr chn :: nil) = true.
-cases; ifs.
+cert.
 Qed. Hint Rewrite when_outside : ircert.
 
 Lemma when_inside : forall usr chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr usr chn) (map (fun x => EVN_JOIN x usr chn) usrs) = true.
-cases; ifs.
+cert.
 Qed. Hint Rewrite when_inside : ircert.
 
 Lemma if_in_chn_then_in_users : forall usr chn xs,
@@ -121,7 +123,7 @@ Qed. Hint Rewrite if_in_chn_then_in_users : ircert.
 
 Lemma omg : forall chn (xs ys:Users),
   (if chn_eq chn chn then xs else ys) = xs.
-cases; ifs.
+cert.
 Qed. Hint Rewrite omg : ircert.
 
 Lemma hmm : forall usr chn usrs xs,
