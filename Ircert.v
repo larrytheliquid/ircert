@@ -101,86 +101,77 @@ Ltac cases := cases'; simpl in *; step.
 Ltac cert := cases; ifs.
 
 Lemma inside : forall e, in_responses e (e :: nil) = true.
-cert.
-Qed. Hint Rewrite inside : ircert.
+cert. Qed.
+Hint Rewrite inside : ircert.
 
 Lemma when_outside : forall usr chn,
   in_responses (EVN_JOIN usr usr chn) (EVN_JOIN usr usr chn :: nil) = true.
-cert.
-Qed. Hint Rewrite when_outside : ircert.
+cert. Qed.
+Hint Rewrite when_outside : ircert.
 
 Lemma when_inside : forall usr chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr usr chn) (map (fun x => EVN_JOIN x usr chn) usrs) = true.
-cert.
-Qed. Hint Rewrite when_inside : ircert.
+cert. Qed.
+Hint Rewrite when_inside : ircert.
 
 Lemma if_in_chn_then_in_users : forall usr chn xs,
   in_channel usr chn xs = true ->
   in_users usr (members chn xs) = true.
-step.
-Qed. Hint Rewrite if_in_chn_then_in_users : ircert.
+cert. Qed.
+Hint Rewrite if_in_chn_then_in_users : ircert.
 
 Lemma omg : forall chn (xs ys:Users),
   (if chn_eq chn chn then xs else ys) = xs.
-cert.
-Qed. Hint Rewrite omg : ircert.
+cert. Qed.
+Hint Rewrite omg : ircert.
 
 Lemma hmm : forall usr chn usrs xs,
   in_channel usr chn ((chn, usrs) :: xs) = true ->
   in_users usr usrs = true.
 intros. unfold in_channel in H. simpl in H. autorewrite with ircert in H. assumption.
 Qed. Hint Rewrite hmm : ircert.
-Check map.
 
 Lemma one_map : forall A B (f : A -> B) (x:A) (xs:list A),
   map f (x :: xs) = f x :: map f xs.
-auto.
-Qed.
+cert. Qed.
 
 Lemma moar : forall r rs,
   in_responses r (r :: rs) = true.
-intros. simpl. auto; ifs.
-Qed.
+cert. Qed.
 
 Lemma lemzzz : forall usr joiner chn usrs,
   in_responses (EVN_JOIN usr joiner chn)
   (map (fun x => EVN_JOIN x joiner chn) (usr :: usrs)) = true.
-intros. rewrite one_map. apply moar.
-Qed.
+cert. Qed.
 
 Lemma for_the_user : forall usr chn usrs,
   in_responses (EVN_JOIN usr usr chn)
   (map (fun x => EVN_JOIN x usr chn) (usr :: usrs)) = true.
-intros; apply lemzzz.
-Qed.
+cert. Qed.
 
 Lemma hoihoihoi : forall usr usr' usrs,
   in_users usr usrs = false ->
   in_users usr (usr' :: usrs) = true ->
   usr = usr'.
-intros. simpl in *. ifs'; step.
-Qed.
+cert. Qed.
 
 Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
   in_responses (EVN_JOIN usr joiner chn)
    (map (fun x : User => EVN_JOIN x joiner chn) usrs) = true ->
   in_responses (EVN_JOIN usr joiner chn)
    (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true.
-intros; simpl in *; ifs'; auto.
-Qed.
+cert. Qed.
 
 Lemma lalala : forall usr joiner chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
-intros. induction usrs. auto.
-simpl in *; ifs'; step.
-Qed.
+cert. Qed.
 
 Lemma lalala2 : forall usr joiner chn xs,
   in_channel usr chn xs = true ->
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true.
-intros. apply lalala. assumption.
-Qed.
+Hint Resolve lalala.
+cert. Qed.
