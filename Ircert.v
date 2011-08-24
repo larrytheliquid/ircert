@@ -55,6 +55,7 @@ Fixpoint members (chn:Channel) (xs:State) : Users :=
 
 Definition in_channel (usr:User) (chn:Channel) (xs:State) : bool :=
   in_users usr (members chn xs).
+Hint Unfold in_channel : ircert.
 
 Fixpoint in_responses (r:Response) (rs:Responses) : bool :=
   match rs with
@@ -129,7 +130,6 @@ Lemma hmm : forall usr chn usrs xs,
   in_users usr usrs = true.
 intros. unfold in_channel in H. simpl in H. autorewrite with ircert in H. assumption.
 Qed. Hint Rewrite hmm : ircert.
-Check map.
 
 Lemma one_map : forall A B (f : A -> B) (x:A) (xs:list A),
   map f (x :: xs) = f x :: map f xs.
@@ -144,7 +144,7 @@ Qed.
 Lemma lemzzz : forall usr joiner chn usrs,
   in_responses (EVN_JOIN usr joiner chn)
   (map (fun x => EVN_JOIN x joiner chn) (usr :: usrs)) = true.
-intros. rewrite one_map. apply moar.
+cases; ifs.
 Qed.
 
 Lemma for_the_user : forall usr chn usrs,
@@ -153,14 +153,11 @@ Lemma for_the_user : forall usr chn usrs,
 intros; apply lemzzz.
 Qed.
 
- (* in_responses (EVN_JOIN usr joiner chn) *)
- (*   (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true *)
-
 Lemma hoihoihoi : forall usr usr' usrs,
   in_users usr usrs = false ->
   in_users usr (usr' :: usrs) = true ->
   usr = usr'.
-intros. unfold in_users in *. ifs'. assumption. congruence.
+cases; ifs.
 Qed.
 
 Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
@@ -168,15 +165,14 @@ Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
    (map (fun x : User => EVN_JOIN x joiner chn) usrs) = true ->
   in_responses (EVN_JOIN usr joiner chn)
    (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true.
-intros; simpl in *; ifs''; auto.
+cases; ifs.
 Qed.
 
 Lemma lalala : forall usr joiner chn usrs,
   in_users usr usrs = true ->
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
-intros. induction usrs. auto.
-simpl in *; ifs''; auto. congruence.
+cases; ifs.
 Qed.
 
 Lemma lalala2 : forall usr joiner chn xs,
