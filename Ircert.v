@@ -138,7 +138,7 @@ Qed.
 
 Lemma moar : forall r rs,
   in_responses r (r :: rs) = true.
-intros. unfold in_responses. auto; ifs.
+intros. simpl. auto; ifs.
 Qed.
 
 Lemma lemzzz : forall usr joiner chn usrs,
@@ -157,7 +157,7 @@ Lemma hoihoihoi : forall usr usr' usrs,
   in_users usr usrs = false ->
   in_users usr (usr' :: usrs) = true ->
   usr = usr'.
-intros. unfold in_users in *. ifs'; step.
+intros. simpl in *. ifs'; step.
 Qed.
 
 Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
@@ -180,5 +180,5 @@ Lemma lalala2 : forall usr joiner chn xs,
   in_channel usr chn xs = true ->
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true.
-intros. unfold in_channel in *. apply lalala. assumption.
+intros. apply lalala. assumption.
 Qed.
