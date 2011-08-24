@@ -75,15 +75,9 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
         end
   end.
 
-Ltac ifs'' := repeat (match goal with
-  | [ |- context[if ?x then _ else _] ] => destruct x
-  | [ H : context[if ?x then _ else _] |- _ ] => destruct x
-end).
-
 Ltac ifs' := repeat (match goal with
   | [ |- context[if ?x then _ else _] ] => destruct x
   | [ H : context[if ?x then _ else _] |- _ ] => destruct x
-  | [ H : context[in_users ?usr ?usrs] |- _ ] => destruct (in_users usr usrs)
 end).
 
 Ltac ifs :=
@@ -133,12 +127,12 @@ Check map.
 
 Lemma one_map : forall A B (f : A -> B) (x:A) (xs:list A),
   map f (x :: xs) = f x :: map f xs.
-crush.
+auto.
 Qed.
 
 Lemma moar : forall r rs,
   in_responses r (r :: rs) = true.
-crush; ifs.
+intros. unfold in_responses. auto; ifs.
 Qed.
 
 Lemma lemzzz : forall usr joiner chn usrs,
@@ -153,9 +147,6 @@ Lemma for_the_user : forall usr chn usrs,
 intros; apply lemzzz.
 Qed.
 
- (* in_responses (EVN_JOIN usr joiner chn) *)
- (*   (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true *)
-
 Lemma hoihoihoi : forall usr usr' usrs,
   in_users usr usrs = false ->
   in_users usr (usr' :: usrs) = true ->
@@ -168,7 +159,7 @@ Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
    (map (fun x : User => EVN_JOIN x joiner chn) usrs) = true ->
   in_responses (EVN_JOIN usr joiner chn)
    (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true.
-intros; simpl in *; ifs''; auto.
+intros; simpl in *; ifs'; auto.
 Qed.
 
 Lemma lalala : forall usr joiner chn usrs,
@@ -176,7 +167,7 @@ Lemma lalala : forall usr joiner chn usrs,
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
 intros. induction usrs. auto.
-simpl in *; ifs''; auto. congruence.
+simpl in *; ifs'; auto. congruence.
 Qed.
 
 Lemma lalala2 : forall usr joiner chn xs,
