@@ -176,13 +176,12 @@ Lemma lalala : forall usr joiner chn usrs,
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
 intros. induction usrs. auto.
-simpl in *; ifs.
+simpl in *; ifs''; auto. congruence.
 Qed.
 
-(* Lemma lalala : forall usr joiner chn xs, *)
-(*   in_channel usr chn xs = true -> *)
-(*   in_responses (EVN_JOIN usr joiner chn) *)
-(*     (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true. *)
-(* intros. induction xs. auto. *)
-(* (* assert if_in_chn_then_in_users. *) *)
-(* Qed. *)
+Lemma lalala2 : forall usr joiner chn xs,
+  in_channel usr chn xs = true ->
+  in_responses (EVN_JOIN usr joiner chn)
+    (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true.
+intros. unfold in_channel in *. apply lalala. assumption.
+Qed.
