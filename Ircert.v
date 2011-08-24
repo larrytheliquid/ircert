@@ -68,12 +68,17 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
   match xs with
     | nil => EVN_JOIN usr usr chn :: nil
     | (chn' , usrs) :: xs' => if chn_eq chn chn' 
-      then (map (fun x => EVN_JOIN x usr chn) (usr :: usrs))
+      then (map (fun x => EVN_JOIN x usr chn) usrs)
       else
         match join_channel usr chn xs' with
           | es => es
         end
   end.
+
+Ltac ifs'' := repeat (match goal with
+  | [ |- context[if ?x then _ else _] ] => destruct x
+  | [ H : context[if ?x then _ else _] |- _ ] => destruct x
+end).
 
 Ltac ifs' := repeat (match goal with
   | [ |- context[if ?x then _ else _] ] => destruct x
@@ -136,18 +141,48 @@ Lemma moar : forall r rs,
 crush; ifs.
 Qed.
 
-Lemma lemzzz : forall usr chn usrs,
-  in_responses (EVN_JOIN usr usr chn)
-  (map (fun x => EVN_JOIN x usr chn) (usr :: usrs)) = true.
+Lemma lemzzz : forall usr joiner chn usrs,
+  in_responses (EVN_JOIN usr joiner chn)
+  (map (fun x => EVN_JOIN x joiner chn) (usr :: usrs)) = true.
 intros. rewrite one_map. apply moar.
 Qed.
 
-Theorem joining_user_gets_join_notice usr chn xs :
-  in_responses (EVN_JOIN usr usr chn) (join_channel usr chn xs) = true.
-induction xs.
-simpl join_channel. apply when_outside.
-simpl join_channel. destruct a.
-  destruct (chn_eq chn c).
-  apply lemzzz.
-  assumption.
+Lemma for_the_user : forall usr chn usrs,
+  in_responses (EVN_JOIN usr usr chn)
+  (map (fun x => EVN_JOIN x usr chn) (usr :: usrs)) = true.
+intros; apply lemzzz.
 Qed.
+
+ (* in_responses (EVN_JOIN usr joiner chn) *)
+ (*   (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true *)
+
+Lemma hoihoihoi : forall usr usr' usrs,
+  in_users usr usrs = false ->
+  in_users usr (usr' :: usrs) = true ->
+  usr = usr'.
+intros. unfold in_users in *. ifs'. assumption. congruence.
+Qed.
+
+Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
+  in_responses (EVN_JOIN usr joiner chn)
+   (map (fun x : User => EVN_JOIN x joiner chn) usrs) = true ->
+  in_responses (EVN_JOIN usr joiner chn)
+   (map (fun x : User => EVN_JOIN x joiner chn) (a :: usrs)) = true.
+intros; simpl in *; ifs''; auto.
+Qed.
+
+Lemma lalala : forall usr joiner chn usrs,
+  in_users usr usrs = true ->
+  in_responses (EVN_JOIN usr joiner chn)
+    (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
+intros. induction usrs. auto.
+simpl in *; ifs.
+Qed.
+
+(* Lemma lalala : forall usr joiner chn xs, *)
+(*   in_channel usr chn xs = true -> *)
+(*   in_responses (EVN_JOIN usr joiner chn) *)
+(*     (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true. *)
+(* intros. induction xs. auto. *)
+(* (* assert if_in_chn_then_in_users. *) *)
+(* Qed. *)
