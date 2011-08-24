@@ -80,6 +80,12 @@ Ltac ifs' := repeat (match goal with
   | [ H : context[if ?x then _ else _] |- _ ] => destruct x
 end).
 
+Ltac step :=
+  match goal with
+    | [ |- ?x ] => congruence
+    | [ |- ?x ] => auto
+  end.
+
 Ltac ifs :=
 ifs'; try (autorewrite with ircert in *); crush.
 
@@ -110,7 +116,7 @@ Qed. Hint Rewrite when_inside : ircert.
 Lemma if_in_chn_then_in_users : forall usr chn xs,
   in_channel usr chn xs = true ->
   in_users usr (members chn xs) = true.
-intros. auto.
+step.
 Qed. Hint Rewrite if_in_chn_then_in_users : ircert.
 
 Lemma omg : forall chn (xs ys:Users),
@@ -151,7 +157,7 @@ Lemma hoihoihoi : forall usr usr' usrs,
   in_users usr usrs = false ->
   in_users usr (usr' :: usrs) = true ->
   usr = usr'.
-intros. unfold in_users in *. ifs'. assumption. congruence.
+intros. unfold in_users in *. ifs'; step.
 Qed.
 
 Lemma cons_preserves_map_prop : forall usr joiner chn a usrs,
@@ -167,7 +173,7 @@ Lemma lalala : forall usr joiner chn usrs,
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) usrs) = true.
 intros. induction usrs. auto.
-simpl in *; ifs'; auto. congruence.
+simpl in *; ifs'; step.
 Qed.
 
 Lemma lalala2 : forall usr joiner chn xs,
