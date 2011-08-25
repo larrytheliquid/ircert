@@ -75,10 +75,13 @@ Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
         end
   end.
 
+Definition join_channel' (usr:User) (chn:Channel) (xs:State) : Responses :=
+  map (fun x => EVN_JOIN x usr chn) (usr :: members chn xs).
+
 Ltac step :=
   match goal with
-    | [ |- ?x ] => congruence
-    | [ |- ?x ] => auto
+    | [ |- _ ] => congruence
+    | [ |- _ ] => auto
   end.
 
 Ltac ifs' := repeat (match goal with
@@ -174,4 +177,10 @@ Lemma lalala2 : forall usr joiner chn xs,
   in_responses (EVN_JOIN usr joiner chn)
     (map (fun x => EVN_JOIN x joiner chn) (members chn xs)) = true.
 Hint Resolve lalala.
+cert. Qed.
+
+Lemma lalala3 : forall usr joiner chn xs,
+  in_channel usr chn xs = true ->
+  in_responses (EVN_JOIN usr joiner chn)
+    (join_channel' joiner chn xs) = true.
 cert. Qed.
