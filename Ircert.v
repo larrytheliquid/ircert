@@ -64,18 +64,7 @@ Fixpoint in_responses (r:Response) (rs:Responses) : bool :=
       else in_responses r rs'
   end.
 
-Fixpoint join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
-  match xs with
-    | nil => EVN_JOIN usr usr chn :: nil
-    | (chn' , usrs) :: xs' => if chn_eq chn chn' 
-      then (map (fun x => EVN_JOIN x usr chn) usrs)
-      else
-        match join_channel usr chn xs' with
-          | es => es
-        end
-  end.
-
-Definition join_channel' (usr:User) (chn:Channel) (xs:State) : Responses :=
+Definition join_channel (usr:User) (chn:Channel) (xs:State) : Responses :=
   map (fun x => EVN_JOIN x usr chn) (usr :: members chn xs).
 
 Ltac step :=
@@ -182,5 +171,25 @@ cert. Qed.
 Lemma lalala3 : forall usr joiner chn xs,
   in_channel usr chn xs = true ->
   in_responses (EVN_JOIN usr joiner chn)
-    (join_channel' joiner chn xs) = true.
+    (join_channel joiner chn xs) = true.
 cert. Qed.
+
+Fixpoint join_channel' (usr:User) (chn:Channel) (xs:State) : State :=
+  match xs with
+    | nil => (chn , usr :: nil) :: nil
+    | (chn' , usrs) :: xs' => if chn_eq chn chn'
+      then (chn' , usr :: usrs) :: xs'
+      else (chn' , usrs) :: join_channel' usr chn xs'
+  end.
+
+Lemma joinzz : forall usr chn xs,
+  in_channel usr chn (join_channel' usr chn xs) = true.
+cert.
+unfold in_channel. simpl. ifs. cert.
+destruct a. unfold in_channel. ifs.
+unfold in_channel. simpl. ifs. cert.
+unfold in_channel. cert.
+Qed.
+
+
+  
