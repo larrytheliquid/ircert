@@ -10,13 +10,13 @@ type Channel = Int
 data Command =
    Join User Channel
  | Part User Channel
- | Privmsg User Channel String
 
 data Response =
    Evn_Join User User Channel
  | Evn_Part User User Channel
   deriving Eq
 
+type Commands = [Command]
 type Users = [User]
 type Responses = [Response]
 type State = [(Channel , Users)]
@@ -64,62 +64,71 @@ partChannel' usr chn ((chn' , usrs) : xs)
 
 respond :: Command -> State -> (Responses , State)
 respond (Join usr chn) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
-respond (Part _ _) _ = undefined
-respond (Privmsg _ _ _) _ = undefined
+respond (Part usr chn) xs = (partChannel usr chn xs , partChannel' usr chn xs)
+
+serve' :: Commands -> (Responses , State) -> (Responses , State)
+serve' [] x = x
+serve' (c : cs) (rs , xs) =
+  let (rs' , xs') = respond c xs in
+  serve' cs (rs ++ rs' , xs')
+
+serve :: Commands -> (Responses , State)
+serve cs = serve' cs ([] , [])
+
+serveR :: Commands -> Responses
+serveR = fst . serve
+
+serveS :: Commands -> State
+serveS = snd . serve
 
 {- Properties -}
 
-prop_joiner_gets_message :: User -> Channel -> State -> Bool
-prop_joiner_gets_message usr chn xs =
-  inResponses (Evn_Join usr usr chn) (joinChannel usr chn xs)
+prop_joiner_gets_message :: User -> Channel -> Bool
+prop_joiner_gets_message usr chn =
+  inResponses (Evn_Join usr usr chn) $ serveR [Join usr chn]
 
-prop_join_implies_in_channel :: User -> Channel -> State -> Bool
-prop_join_implies_in_channel usr chn xs =
-  inChannel usr chn (joinChannel' usr chn xs)
+prop_join_implies_in_channel :: User -> Channel -> Bool
+prop_join_implies_in_channel usr chn =
+  inChannel usr chn $ serveS [Join usr chn]
 
-prop_all_members_get_join_message :: User -> User -> Channel -> State -> Property
-prop_all_members_get_join_message usr joiner chn xs =
-  let xs' = joinChannel' usr chn xs in
-  inChannel usr chn xs' ==>
-  inResponses (Evn_Join usr joiner chn) (joinChannel joiner chn xs')
+prop_all_members_get_join_message :: User -> User -> Channel -> Bool
+prop_all_members_get_join_message usr joiner chn =
+  inResponses (Evn_Join usr joiner chn) $ serveR [Join usr chn, Join joiner chn]
 
-prop_parter_gets_message :: User -> Channel -> State -> Bool
-prop_parter_gets_message usr chn xs =
-  inResponses (Evn_Part usr usr chn) (partChannel usr chn xs)
+prop_parter_gets_message :: User -> Channel -> Bool
+prop_parter_gets_message usr chn =
+  inResponses (Evn_Part usr usr chn) $ serveR [Part usr chn]
 
-prop_part_implies_not_in_channel :: User -> Channel -> State -> Bool
-prop_part_implies_not_in_channel usr chn xs =
-  let xs' = map (\x -> (fst x , nub (snd x))) xs in
-  -- no duplicate users ==>
-  -- no duplicate channels ==>
-  not $ inChannel usr chn (partChannel' usr chn xs')
+prop_part_implies_not_in_channel :: User -> Channel -> Bool
+prop_part_implies_not_in_channel usr chn =
+  not $ inChannel usr chn $ serveS [Part usr chn]
 
-prop_all_members_get_part_message :: User -> User -> Channel -> State -> Property
-prop_all_members_get_part_message usr parter chn xs =
-  let xs' = joinChannel' usr chn xs in
-  inChannel usr chn xs' ==>
-  inResponses (Evn_Part usr parter chn) (partChannel parter chn xs')
+prop_all_members_get_part_message :: User -> User -> Channel -> Bool
+prop_all_members_get_part_message usr parter chn =
+  inResponses (Evn_Part usr parter chn) $ serveR [Join usr chn, Part parter chn]
 
-prop_part_left_inverse_of_join :: User -> Channel -> State -> Property
-prop_part_left_inverse_of_join usr chn xs =
-  not (emptyChannel chn xs) ==>
-  not (inChannel usr chn xs) ==>
-  partChannel' usr chn (joinChannel' usr chn xs) == xs
+prop_part_left_inverse_of_join :: User -> Channel -> Bool
+prop_part_left_inverse_of_join usr chn =
+  let before = serve [] in
+  snd (serve' [Join usr chn, Part usr chn] before) == snd before
+
+header :: String -> IO ()
+header x = putStrLn $ "\n[" ++ x ++ "]"
 
 main :: IO ()
 main = let n = 3 in do
-  putStrLn "Any user that joines a channel gets a message about it:"
+  header "Any user that joines a channel gets a message about it"
   smallCheck n prop_joiner_gets_message
-  putStrLn "Joining a channel satisfies the inChannel predicate:"
+  header "Joining a channel satisfies the inChannel predicate"
   smallCheck n prop_join_implies_in_channel
-  putStrLn "Any user in a channel gets a message about a join:"
+  header "Any user in a channel gets a message about a join"
   smallCheck n prop_all_members_get_join_message
-  putStrLn "Any user that parts a channel gets a message about it:"
+  header "Any user that parts a channel gets a message about it"
   smallCheck n prop_parter_gets_message
-  putStrLn "Parting a channel dissatisfies the inChannel predicate:"
+  header "Parting a channel dissatisfies the inChannel predicate"
   smallCheck n prop_part_implies_not_in_channel
-  putStrLn "Any user in a channel gets a message about a part:"
+  header "Any user in a channel gets a message about a part"
   smallCheck n prop_all_members_get_part_message
-  putStrLn "Part is the left inverse of join:"
+  header "Part is the left inverse of join"
   smallCheck n prop_part_left_inverse_of_join
-  putStrLn "Done!"
+  putStrLn "... Done!"
