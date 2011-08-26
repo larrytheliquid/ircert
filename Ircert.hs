@@ -1,5 +1,5 @@
 module Ircert where
-import Test.QuickCheck
+import Test.SmallCheck
 
 type User = Int
 type Channel = Int
@@ -45,12 +45,18 @@ prop_joiner_gets_message :: User -> Channel -> Users -> Bool
 prop_joiner_gets_message usr chn usrs =
   inResponses (Evn_Join usr usr chn) (map (\x -> Evn_Join x usr chn) (usr : usrs))
 
+prop_join_implies_in_channel :: User -> Channel -> State -> Bool
+prop_join_implies_in_channel usr chn xs =
+  inChannel usr chn (joinChannel' usr chn xs)
+
 prop_all_members_get_join_message :: User -> User -> Channel -> State -> Property
 prop_all_members_get_join_message usr joiner chn xs =
-  inChannel usr chn xs ==>
-  inResponses (Evn_Join usr joiner chn) (joinChannel joiner chn xs)
+  let xs' = joinChannel' usr chn xs in
+  inChannel usr chn xs' ==>
+  inResponses (Evn_Join usr joiner chn) (joinChannel joiner chn xs')
 
 main = do
-  quickCheck prop_joiner_gets_message
-  quickCheck prop_all_members_get_join_message
+  smallCheck 4 prop_joiner_gets_message
+  smallCheck 3 prop_join_implies_in_channel
+  smallCheck 3 prop_all_members_get_join_message
   putStrLn "Done!"
