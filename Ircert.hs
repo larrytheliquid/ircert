@@ -65,9 +65,9 @@ respond (Privmsg _ _ _) _ = undefined
 
 {- Properties -}
 
-prop_joiner_gets_message :: User -> Channel -> Users -> Bool
-prop_joiner_gets_message usr chn usrs =
-  inResponses (Evn_Join usr usr chn) (map (\x -> Evn_Join x usr chn) (usr : usrs))
+prop_joiner_gets_message :: User -> Channel -> State -> Bool
+prop_joiner_gets_message usr chn xs =
+  inResponses (Evn_Join usr usr chn) (joinChannel usr chn xs)
 
 prop_join_implies_in_channel :: User -> Channel -> State -> Bool
 prop_join_implies_in_channel usr chn xs =
@@ -79,9 +79,21 @@ prop_all_members_get_join_message usr joiner chn xs =
   inChannel usr chn xs' ==>
   inResponses (Evn_Join usr joiner chn) (joinChannel joiner chn xs')
 
+prop_parter_gets_message :: User -> Channel -> State -> Bool
+prop_parter_gets_message usr chn xs =
+  inResponses (Evn_Part usr usr chn) (partChannel usr chn xs)
+
+prop_part_implies_not_in_channel :: User -> Channel -> State -> Bool
+prop_part_implies_not_in_channel usr chn xs =
+  let xs' = map (\x -> (fst x , nub (snd x))) xs in
+  -- no duplicate users ==>
+  not $ inChannel usr chn (partChannel' usr chn xs')
+
 main :: IO ()
-main = do
-  smallCheck 4 prop_joiner_gets_message
-  smallCheck 3 prop_join_implies_in_channel
-  smallCheck 3 prop_all_members_get_join_message
+main = let n = 3 in do
+  smallCheck n prop_joiner_gets_message
+  smallCheck n prop_join_implies_in_channel
+  smallCheck n prop_all_members_get_join_message
+  smallCheck n prop_parter_gets_message
+  smallCheck n prop_part_implies_not_in_channel
   putStrLn "Done!"
