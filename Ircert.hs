@@ -35,6 +35,9 @@ members chn ((chn' , usrs) : xs) = if chn == chn'
 inChannel :: User -> Channel -> State -> Bool
 inChannel usr chn xs = inUsers usr (members chn xs)
 
+emptyChannel :: Channel -> State -> Bool
+emptyChannel chn xs = members chn xs == []
+
 inResponses :: Response -> Responses -> Bool
 inResponses = elem
 
@@ -54,9 +57,10 @@ partChannel usr chn xs = map (\x -> Evn_Part x usr chn) (usr : members chn xs)
 
 partChannel' :: User -> Channel -> State -> State
 partChannel' _ _ [] = []
-partChannel' usr chn ((chn' , usrs) : xs) = if chn == chn'
-  then (chn' , delete usr usrs) : xs
-  else (chn' , usrs) : partChannel' usr chn xs
+partChannel' usr chn ((chn' , usrs) : xs)
+  | chn == chn' && usrs == [usr] = xs
+  | chn == chn' = (chn' , delete usr usrs) : xs
+  | otherwise = (chn' , usrs) : partChannel' usr chn xs
 
 respond :: Command -> State -> (Responses , State)
 respond (Join usr chn) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
@@ -87,13 +91,35 @@ prop_part_implies_not_in_channel :: User -> Channel -> State -> Bool
 prop_part_implies_not_in_channel usr chn xs =
   let xs' = map (\x -> (fst x , nub (snd x))) xs in
   -- no duplicate users ==>
+  -- no duplicate channels ==>
   not $ inChannel usr chn (partChannel' usr chn xs')
+
+prop_all_members_get_part_message :: User -> User -> Channel -> State -> Property
+prop_all_members_get_part_message usr parter chn xs =
+  let xs' = joinChannel' usr chn xs in
+  inChannel usr chn xs' ==>
+  inResponses (Evn_Part usr parter chn) (partChannel parter chn xs')
+
+prop_part_left_inverse_of_join :: User -> Channel -> State -> Property
+prop_part_left_inverse_of_join usr chn xs =
+  not (emptyChannel chn xs) ==>
+  not (inChannel usr chn xs) ==>
+  partChannel' usr chn (joinChannel' usr chn xs) == xs
 
 main :: IO ()
 main = let n = 3 in do
+  putStrLn "Any user that joines a channel gets a message about it:"
   smallCheck n prop_joiner_gets_message
+  putStrLn "Joining a channel satisfies the inChannel predicate:"
   smallCheck n prop_join_implies_in_channel
+  putStrLn "Any user in a channel gets a message about a join:"
   smallCheck n prop_all_members_get_join_message
+  putStrLn "Any user that parts a channel gets a message about it:"
   smallCheck n prop_parter_gets_message
+  putStrLn "Parting a channel dissatisfies the inChannel predicate:"
   smallCheck n prop_part_implies_not_in_channel
+  putStrLn "Any user in a channel gets a message about a part:"
+  smallCheck n prop_all_members_get_part_message
+  putStrLn "Part is the left inverse of join:"
+  smallCheck n prop_part_left_inverse_of_join
   putStrLn "Done!"
