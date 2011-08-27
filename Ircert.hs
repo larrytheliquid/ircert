@@ -101,8 +101,8 @@ prop_join_implies_in_channel cs usr chn =
 
 prop_all_members_get_join_message :: Commands -> User -> User -> Channel -> Bool
 prop_all_members_get_join_message cs usr joiner chn =
-  let ctx = serve cs in
-  inResponses (Evn_Join usr joiner chn) $ serveR ctx [Join usr chn, Join joiner chn]
+  let ctx = serve (cs ++ [Join usr chn]) in
+  inResponses (Evn_Join usr joiner chn) $ serveR ctx [Join joiner chn]
 
 prop_parter_gets_message :: Commands -> User -> Channel -> Bool
 prop_parter_gets_message cs usr chn =
@@ -116,8 +116,8 @@ prop_part_implies_not_in_channel cs usr chn =
 
 prop_all_members_get_part_message :: Commands -> User -> User -> Channel -> Bool
 prop_all_members_get_part_message cs usr parter chn =
-  let ctx = serve cs in
-  inResponses (Evn_Part usr parter chn) $ serveR ctx [Join usr chn, Part parter chn]
+  let ctx = serve (cs ++ [Join usr chn]) in
+  inResponses (Evn_Part usr parter chn) $ serveR ctx [Part parter chn]
 
 prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
 prop_part_left_inverse_of_join cs usr chn =
