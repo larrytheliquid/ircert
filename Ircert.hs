@@ -10,16 +10,21 @@ type Channel = Int
 data Command =
    Join User Channel
  | Part User Channel
+ deriving (Eq, Show)
+
+instance Serial Command where
+  series = cons2 Join \/ cons2 Part
 
 data Response =
    Evn_Join User User Channel
  | Evn_Part User User Channel
-  deriving Eq
+  deriving (Eq, Show)
 
+type Context = (Responses , State)
 type Commands = [Command]
-type Users = [User]
 type Responses = [Response]
 type State = [(Channel , Users)]
+type Users = [User]
 
 {- Predicates -}
 
@@ -48,9 +53,10 @@ joinChannel usr chn xs = map (\x -> Evn_Join x usr chn) (usr : members chn xs)
 
 joinChannel' :: User -> Channel -> State -> State
 joinChannel' usr chn [] = [(chn , [usr])]
-joinChannel' usr chn ((chn' , usrs) : xs) = if chn == chn'
-  then (chn' , usr : usrs) : xs
-  else (chn' , usrs) : joinChannel' usr chn xs
+joinChannel' usr chn ((chn' , usrs) : xs) 
+  | chn == chn' && inUsers usr usrs = (chn' , usrs) : xs
+  | chn == chn' = (chn' , usr : usrs) : xs
+  | otherwise = (chn' , usrs) : joinChannel' usr chn xs
 
 partChannel :: User -> Channel -> State -> Responses
 partChannel usr chn xs = map (\x -> Evn_Part x usr chn) (usr : members chn xs)
@@ -62,55 +68,61 @@ partChannel' usr chn ((chn' , usrs) : xs)
   | chn == chn' = (chn' , delete usr usrs) : xs
   | otherwise = (chn' , usrs) : partChannel' usr chn xs
 
-respond :: Command -> State -> (Responses , State)
+respond :: Command -> State -> Context
 respond (Join usr chn) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
 respond (Part usr chn) xs = (partChannel usr chn xs , partChannel' usr chn xs)
 
-serve' :: Commands -> (Responses , State) -> (Responses , State)
-serve' [] x = x
-serve' (c : cs) (rs , xs) =
+serve' :: Context -> Commands -> Context
+serve' ctx [] = ctx
+serve' (rs , xs) (c : cs) =
   let (rs' , xs') = respond c xs in
-  serve' cs (rs ++ rs' , xs')
+  serve' (rs ++ rs' , xs') cs
 
-serve :: Commands -> (Responses , State)
-serve cs = serve' cs ([] , [])
+serveR :: Context -> Commands -> Responses
+serveR ctx cs = fst $ serve' ctx cs
 
-serveR :: Commands -> Responses
-serveR = fst . serve
+serveS :: Context -> Commands -> State
+serveS ctx cs = snd $ serve' ctx cs
 
-serveS :: Commands -> State
-serveS = snd . serve
+serve :: Commands -> Context
+serve cs = serve' ([] , []) cs
 
 {- Properties -}
 
-prop_joiner_gets_message :: User -> Channel -> Bool
-prop_joiner_gets_message usr chn =
-  inResponses (Evn_Join usr usr chn) $ serveR [Join usr chn]
+prop_joiner_gets_message :: Commands -> User -> Channel -> Bool
+prop_joiner_gets_message cs usr chn =
+  let ctx = serve cs in
+  inResponses (Evn_Join usr usr chn) $ serveR ctx [Join usr chn]
 
-prop_join_implies_in_channel :: User -> Channel -> Bool
-prop_join_implies_in_channel usr chn =
-  inChannel usr chn $ serveS [Join usr chn]
+prop_join_implies_in_channel :: Commands -> User -> Channel -> Bool
+prop_join_implies_in_channel cs usr chn =
+  let ctx = serve cs in
+  inChannel usr chn $ serveS ctx [Join usr chn]
 
-prop_all_members_get_join_message :: User -> User -> Channel -> Bool
-prop_all_members_get_join_message usr joiner chn =
-  inResponses (Evn_Join usr joiner chn) $ serveR [Join usr chn, Join joiner chn]
+prop_all_members_get_join_message :: Commands -> User -> User -> Channel -> Bool
+prop_all_members_get_join_message cs usr joiner chn =
+  let ctx = serve cs in
+  inResponses (Evn_Join usr joiner chn) $ serveR ctx [Join usr chn, Join joiner chn]
 
-prop_parter_gets_message :: User -> Channel -> Bool
-prop_parter_gets_message usr chn =
-  inResponses (Evn_Part usr usr chn) $ serveR [Part usr chn]
+prop_parter_gets_message :: Commands -> User -> Channel -> Bool
+prop_parter_gets_message cs usr chn =
+  let ctx = serve cs in
+  inResponses (Evn_Part usr usr chn) $ serveR ctx [Part usr chn]
 
-prop_part_implies_not_in_channel :: User -> Channel -> Bool
-prop_part_implies_not_in_channel usr chn =
-  not $ inChannel usr chn $ serveS [Part usr chn]
+prop_part_implies_not_in_channel :: Commands -> User -> Channel -> Bool
+prop_part_implies_not_in_channel cs usr chn =
+  let ctx = serve cs in
+  not $ inChannel usr chn $ serveS ctx [Part usr chn]
 
-prop_all_members_get_part_message :: User -> User -> Channel -> Bool
-prop_all_members_get_part_message usr parter chn =
-  inResponses (Evn_Part usr parter chn) $ serveR [Join usr chn, Part parter chn]
+prop_all_members_get_part_message :: Commands -> User -> User -> Channel -> Bool
+prop_all_members_get_part_message cs usr parter chn =
+  let ctx = serve cs in
+  inResponses (Evn_Part usr parter chn) $ serveR ctx [Join usr chn, Part parter chn]
 
-prop_part_left_inverse_of_join :: User -> Channel -> Bool
-prop_part_left_inverse_of_join usr chn =
-  let before = serve [] in
-  snd (serve' [Join usr chn, Part usr chn] before) == snd before
+prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
+prop_part_left_inverse_of_join cs usr chn =
+  let ctx = serve (cs ++ [Part usr chn]) in
+  snd (serve' ctx [Join usr chn, Part usr chn]) == snd ctx
 
 header :: String -> IO ()
 header x = putStrLn $ "\n[" ++ x ++ "]"
@@ -131,4 +143,4 @@ main = let n = 3 in do
   smallCheck n prop_all_members_get_part_message
   header "Part is the left inverse of join"
   smallCheck n prop_part_left_inverse_of_join
-  putStrLn "... Done!"
+  putStrLn "\nDone!"
