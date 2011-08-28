@@ -10,14 +10,19 @@ type Channel = Int
 data Command =
    Join User Channel
  | Part User Channel
+ | Privmsg User Channel String
  deriving (Eq, Show)
 
 instance Serial Command where
-  series = cons2 Join \/ cons2 Part
+  series = cons2 Join \/ cons2 Part \/ cons3 Privmsg
 
 data Response =
    Evn_Join User User Channel
  | Evn_Part User User Channel
+ | Evn_Privmsg User User Channel String
+
+ | Err_Cannotsendtochan User Channel
+ | Err_Nosuchnick User Channel
   deriving (Eq, Show)
 
 type Context = (Responses , State)
@@ -36,6 +41,9 @@ members _ [] = []
 members chn ((chn' , usrs) : xs) = if chn == chn'
   then usrs
   else members chn xs
+
+channelExists :: Channel -> State -> Bool
+channelExists chn xs = elem chn (map fst xs)
 
 inChannel :: User -> Channel -> State -> Bool
 inChannel usr chn xs = inUsers usr (members chn xs)
@@ -68,9 +76,16 @@ partChannel' usr chn ((chn' , usrs) : xs)
   | chn == chn' = (chn' , delete usr usrs) : xs
   | otherwise = (chn' , usrs) : partChannel' usr chn xs
 
+msgChannel :: User -> Channel -> String -> State -> Responses
+msgChannel usr chn msg xs 
+  | not (channelExists chn xs) = [Err_Nosuchnick usr chn]
+  | not (inChannel usr chn xs) = [Err_Cannotsendtochan usr chn]
+  | otherwise = map (\x -> Evn_Privmsg x usr chn msg) (members chn xs)
+
 respond :: Command -> State -> Context
 respond (Join usr chn) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
 respond (Part usr chn) xs = (partChannel usr chn xs , partChannel' usr chn xs)
+respond (Privmsg usr chn msg) xs = (msgChannel usr chn msg xs , xs)
 
 serve' :: Context -> Commands -> Context
 serve' ctx [] = ctx
