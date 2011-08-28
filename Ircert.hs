@@ -104,11 +104,6 @@ serve cs = serve' ([] , []) cs
 
 {- Properties -}
 
-prop_joiner_gets_message :: Commands -> User -> Channel -> Bool
-prop_joiner_gets_message cs usr chn =
-  let ctx = serve cs in
-  inResponses (Evn_Join usr usr chn) $ serveR ctx [Join usr chn]
-
 prop_join_implies_in_channel :: Commands -> User -> Channel -> Bool
 prop_join_implies_in_channel cs usr chn =
   let ctx = serve cs in
@@ -119,10 +114,10 @@ prop_all_members_get_join_message cs usr joiner chn =
   let ctx = serve (cs ++ [Join usr chn]) in
   inResponses (Evn_Join usr joiner chn) $ serveR ctx [Join joiner chn]
 
-prop_parter_gets_message :: Commands -> User -> Channel -> Bool
-prop_parter_gets_message cs usr chn =
+prop_joiner_gets_message :: Commands -> User -> Channel -> Bool
+prop_joiner_gets_message cs usr chn =
   let ctx = serve cs in
-  inResponses (Evn_Part usr usr chn) $ serveR ctx [Part usr chn]
+  inResponses (Evn_Join usr usr chn) $ serveR ctx [Join usr chn]
 
 prop_part_implies_not_in_channel :: Commands -> User -> Channel -> Bool
 prop_part_implies_not_in_channel cs usr chn =
@@ -134,28 +129,43 @@ prop_all_members_get_part_message cs usr parter chn =
   let ctx = serve (cs ++ [Join usr chn]) in
   inResponses (Evn_Part usr parter chn) $ serveR ctx [Part parter chn]
 
+prop_parter_gets_message :: Commands -> User -> Channel -> Bool
+prop_parter_gets_message cs usr chn =
+  let ctx = serve cs in
+  inResponses (Evn_Part usr usr chn) $ serveR ctx [Part usr chn]
+
 prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
 prop_part_left_inverse_of_join cs usr chn =
   let ctx = serve (cs ++ [Part usr chn]) in
   snd (serve' ctx [Join usr chn, Part usr chn]) == snd ctx
+
+prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
+prop_all_members_get_privmsg_message cs usr sender chn msg =
+  let ctx = serve (cs ++ [Join usr chn, Join sender chn]) in
+  inResponses (Evn_Privmsg usr sender chn msg) $ serveR ctx [Privmsg sender chn msg]
 
 header :: String -> IO ()
 header x = putStrLn $ "\n[" ++ x ++ "]"
 
 main :: IO ()
 main = let n = 3 in do
-  header "Any user that joines a channel gets a message about it"
-  smallCheck n prop_joiner_gets_message
   header "Joining a channel satisfies the inChannel predicate"
   smallCheck n prop_join_implies_in_channel
   header "Any user in a channel gets a message about a join"
   smallCheck n prop_all_members_get_join_message
-  header "Any user that parts a channel gets a message about it"
-  smallCheck n prop_parter_gets_message
+  header "Any user that joines a channel gets a message about it"
+  smallCheck n prop_joiner_gets_message
+
   header "Parting a channel dissatisfies the inChannel predicate"
   smallCheck n prop_part_implies_not_in_channel
   header "Any user in a channel gets a message about a part"
   smallCheck n prop_all_members_get_part_message
+  header "Any user that parts a channel gets a message about it"
+  smallCheck n prop_parter_gets_message
   header "Part is the left inverse of join"
   smallCheck n prop_part_left_inverse_of_join
+
+  header "Any user in a channel gets a message sent to it"
+  smallCheck n prop_all_members_get_privmsg_message
+
   putStrLn "\nDone!"
