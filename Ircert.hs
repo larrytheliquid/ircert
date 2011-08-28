@@ -21,8 +21,10 @@ data Response =
  | Evn_Part User User Channel
  | Evn_Privmsg User User Channel String
 
- | Err_Cannotsendtochan User Channel
- | Err_Nosuchnick User Channel
+ -- Err 400-599
+ | Err_Nosuchnick User Channel -- 401
+ | Err_Cannotsendtochan User Channel -- 404
+ | Err_Notonchannel User Channel -- 442
   deriving (Eq, Show)
 
 type Context = (Responses , State)
@@ -67,7 +69,10 @@ joinChannel' usr chn ((chn' , usrs) : xs)
   | otherwise = (chn' , usrs) : joinChannel' usr chn xs
 
 partChannel :: User -> Channel -> State -> Responses
-partChannel usr chn xs = map (\x -> Evn_Part x usr chn) (usr : members chn xs)
+partChannel usr chn [] = [Err_Notonchannel usr chn]
+partChannel usr chn ((chn' , usrs) : xs) = if chn == chn'
+  then map (\x -> Evn_Part x usr chn) (usr : usrs)
+  else partChannel usr chn xs
 
 partChannel' :: User -> Channel -> State -> State
 partChannel' _ _ [] = []
@@ -131,13 +136,13 @@ prop_all_members_get_part_message cs usr parter chn =
 
 prop_parter_gets_message :: Commands -> User -> Channel -> Bool
 prop_parter_gets_message cs usr chn =
-  let ctx = serve cs in
+  let ctx = serve (cs ++ [Join usr chn]) in
   inResponses (Evn_Part usr usr chn) $ serveR ctx [Part usr chn]
 
 prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
 prop_part_left_inverse_of_join cs usr chn =
   let ctx = serve (cs ++ [Part usr chn]) in
-  snd (serve' ctx [Join usr chn, Part usr chn]) == snd ctx
+  serveS ctx [Join usr chn, Part usr chn] == snd ctx
 
 prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
 prop_all_members_get_privmsg_message cs usr sender chn msg =
