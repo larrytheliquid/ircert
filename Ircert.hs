@@ -5,7 +5,7 @@ import Test.SmallCheck
 {- Types -}
 
 type User = Int
-type Channel = Int
+type Channel = String
 
 data Command =
    Join User Channel
