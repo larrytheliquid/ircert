@@ -8,6 +8,8 @@ message usr = many (
   <|> try (part usr)
   <|> try (part_missing_chn usr)
   <|> try (privmsg usr)
+  <|> try (privmsg_missing_text usr)
+  <|> try (privmsg_missing_recip usr)
   <|> unknown usr
   )
 
@@ -44,7 +46,21 @@ privmsg usr = do
   sp
   msg <- body
   crlf
-  return $ Privmsg usr chn msg
+  return $ Privmsg usr (Just chn) (Just msg)
+
+privmsg_missing_text usr = do
+  string "PRIVMSG"
+  sp
+  chn <- channel
+  many $ noneOf "\r\n"
+  crlf
+  return $ Privmsg usr (Just chn) Nothing
+
+privmsg_missing_recip usr = do
+  string "PRIVMSG"
+  many $ noneOf "\r\n"
+  crlf
+  return $ Privmsg usr Nothing Nothing
 
 unknown usr = do
   cmd <- many alphaNum

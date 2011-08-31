@@ -10,7 +10,7 @@ type Channel = String
 data Command =
    Join User (Maybe Channel)
  | Part User (Maybe Channel)
- | Privmsg User Channel String
+ | Privmsg User (Maybe Channel) (Maybe String)
  | Unknown User String
  deriving (Eq, Show)
 
@@ -29,6 +29,8 @@ data Response =
  -- Err 400-599
  | Err_Nosuchnick User Channel -- 401
  | Err_Cannotsendtochan User Channel -- 404
+ | Err_Norecipient User String -- 411
+ | Err_Notexttosend User -- 412
  | Err_Unknowncommand User String -- 421
  | Err_Notonchannel User Channel -- 442
  | Err_Needmoreparams User Channel -- 461
@@ -99,7 +101,9 @@ respond (Join usr (Just chn)) xs = (joinChannel usr chn xs , joinChannel' usr ch
 respond (Join usr Nothing) xs = ([Err_Needmoreparams usr "Join"] , xs)
 respond (Part usr (Just chn)) xs = (partChannel usr chn xs , partChannel' usr chn xs)
 respond (Part usr Nothing) xs = ([Err_Needmoreparams usr "Part"] , xs)
-respond (Privmsg usr chn msg) xs = (msgChannel usr chn msg xs , xs)
+respond (Privmsg usr (Just chn) (Just msg)) xs = (msgChannel usr chn msg xs , xs)
+respond (Privmsg usr (Just _) Nothing) xs = ([Err_Notexttosend usr] , xs)
+respond (Privmsg usr Nothing _) xs = ([Err_Norecipient usr "Privmsg"] , xs)
 respond (Unknown usr cmd) xs = ([Err_Unknowncommand usr cmd] , xs)
 
 serve' :: Context -> Commands -> Context
@@ -157,7 +161,7 @@ prop_part_left_inverse_of_join cs usr chn =
 prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
 prop_all_members_get_privmsg_message cs usr sender chn msg =
   let xs = snd $ serve (cs ++ [Join usr (Just chn), Join sender (Just chn)]) in
-  inResponses (Evn_Privmsg usr sender chn msg) $ serveR xs [Privmsg sender chn msg]
+  inResponses (Evn_Privmsg usr sender chn msg) $ serveR xs [Privmsg sender (Just chn) (Just msg)]
 
 header :: String -> IO ()
 header x = putStrLn $ "\n[" ++ x ++ "]"
