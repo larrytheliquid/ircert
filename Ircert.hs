@@ -9,7 +9,7 @@ type Channel = String
 
 data Command =
    Join User (Maybe Channel)
- | Part User Channel
+ | Part User (Maybe Channel)
  | Privmsg User Channel String
  | Unknown User String
  deriving (Eq, Show)
@@ -97,7 +97,8 @@ msgChannel usr chn msg xs
 respond :: Command -> State -> Context
 respond (Join usr (Just chn)) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
 respond (Join usr Nothing) xs = ([Err_Needmoreparams usr "Join"] , xs)
-respond (Part usr chn) xs = (partChannel usr chn xs , partChannel' usr chn xs)
+respond (Part usr (Just chn)) xs = (partChannel usr chn xs , partChannel' usr chn xs)
+respond (Part usr Nothing) xs = ([Err_Needmoreparams usr "Part"] , xs)
 respond (Privmsg usr chn msg) xs = (msgChannel usr chn msg xs , xs)
 respond (Unknown usr cmd) xs = ([Err_Unknowncommand usr cmd] , xs)
 
@@ -136,22 +137,22 @@ prop_joiner_gets_message cs usr chn =
 prop_part_implies_not_in_channel :: Commands -> User -> Channel -> Bool
 prop_part_implies_not_in_channel cs usr chn =
   let xs = snd $ serve cs in
-  not $ inChannel usr chn $ serveS xs [Part usr chn]
+  not $ inChannel usr chn $ serveS xs [Part usr (Just chn)]
 
 prop_all_members_get_part_message :: Commands -> User -> User -> Channel -> Bool
 prop_all_members_get_part_message cs usr parter chn =
   let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
-  inResponses (Evn_Part usr parter chn) $ serveR xs [Part parter chn]
+  inResponses (Evn_Part usr parter chn) $ serveR xs [Part parter (Just chn)]
 
 prop_parter_gets_message :: Commands -> User -> Channel -> Bool
 prop_parter_gets_message cs usr chn =
   let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
-  inResponses (Evn_Part usr usr chn) $ serveR xs [Part usr chn]
+  inResponses (Evn_Part usr usr chn) $ serveR xs [Part usr (Just chn)]
 
 prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
 prop_part_left_inverse_of_join cs usr chn =
-  let xs = snd $ serve (cs ++ [Part usr chn]) in
-  serveS xs [Join usr (Just chn), Part usr chn] == xs
+  let xs = snd $ serve (cs ++ [Part usr (Just chn)]) in
+  serveS xs [Join usr (Just chn), Part usr (Just chn)] == xs
 
 prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
 prop_all_members_get_privmsg_message cs usr sender chn msg =

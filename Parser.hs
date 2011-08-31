@@ -6,6 +6,7 @@ message usr = many (
       try (join usr)
   <|> try (join_missing_chn usr)
   <|> try (part usr)
+  <|> try (part_missing_chn usr)
   <|> try (privmsg usr)
   <|> unknown usr
   )
@@ -28,7 +29,13 @@ part usr = do
   sp
   chn <- channel
   crlf
-  return $ Part usr chn
+  return $ Part usr (Just chn)
+
+part_missing_chn usr = do
+  string "PART"
+  many $ noneOf "\r\n"
+  crlf
+  return $ Part usr Nothing
 
 privmsg usr = do
   string "PRIVMSG"
