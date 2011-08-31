@@ -4,6 +4,7 @@ import Ircert
 
 message usr = many (
       try (join usr)
+  <|> try (join_missing_chn usr)
   <|> try (part usr)
   <|> try (privmsg usr)
   <|> unknown usr
@@ -14,7 +15,13 @@ join usr = do
   sp
   chn <- channel
   crlf
-  return $ Join usr chn
+  return $ Join usr (Just chn)
+
+join_missing_chn usr = do
+  string "JOIN"
+  many $ noneOf "\r\n"
+  crlf
+  return $ Join usr Nothing
 
 part usr = do
   string "PART"
