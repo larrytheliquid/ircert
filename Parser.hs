@@ -2,7 +2,12 @@ module Parser where
 import Text.ParserCombinators.Parsec
 import Ircert
 
-message usr = many (try (join usr) <|> try (part usr) <|> privmsg usr)
+message usr = many (
+      try (join usr)
+  <|> try (part usr)
+  <|> try (privmsg usr)
+  <|> unknown usr
+  )
 
 join usr = do
   string "JOIN"
@@ -26,6 +31,13 @@ privmsg usr = do
   msg <- body
   crlf
   return $ Privmsg usr chn msg
+
+unknown usr = do
+  cmd <- many alphaNum
+  sp
+  many $ noneOf "\r\n"
+  crlf
+  return $ Unknown usr cmd
 
 channel = char '#' >> chanstring
 chanstring = many alphaNum

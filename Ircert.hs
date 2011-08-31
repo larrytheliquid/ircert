@@ -11,10 +11,15 @@ data Command =
    Join User Channel
  | Part User Channel
  | Privmsg User Channel String
+ | Unknown User String
  deriving (Eq, Show)
 
 instance Serial Command where
-  series = cons2 Join \/ cons2 Part \/ cons3 Privmsg
+  series =
+       cons2 Join
+    \/ cons2 Part
+    \/ cons3 Privmsg
+    \/ cons2 Unknown
 
 data Response =
    Evn_Join User User Channel
@@ -24,6 +29,7 @@ data Response =
  -- Err 400-599
  | Err_Nosuchnick User Channel -- 401
  | Err_Cannotsendtochan User Channel -- 404
+ | Err_Unknowncommand User String -- 421
  | Err_Notonchannel User Channel -- 442
   deriving (Eq, Show)
 
@@ -91,6 +97,7 @@ respond :: Command -> State -> Context
 respond (Join usr chn) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
 respond (Part usr chn) xs = (partChannel usr chn xs , partChannel' usr chn xs)
 respond (Privmsg usr chn msg) xs = (msgChannel usr chn msg xs , xs)
+respond (Unknown usr cmd) xs = ([Err_Unknowncommand usr cmd] , xs)
 
 serve' :: Context -> Commands -> Context
 serve' ctx [] = ctx
