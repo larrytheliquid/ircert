@@ -98,12 +98,12 @@ msgChannel usr chn msg xs
 
 respond :: Command -> State -> Context
 respond (Join usr (Just chn)) xs = (joinChannel usr chn xs , joinChannel' usr chn xs)
-respond (Join usr Nothing) xs = ([Err_Needmoreparams usr "Join"] , xs)
+respond (Join usr Nothing) xs = ([Err_Needmoreparams usr "JOIN"] , xs)
 respond (Part usr (Just chn)) xs = (partChannel usr chn xs , partChannel' usr chn xs)
-respond (Part usr Nothing) xs = ([Err_Needmoreparams usr "Part"] , xs)
+respond (Part usr Nothing) xs = ([Err_Needmoreparams usr "PART"] , xs)
 respond (Privmsg usr (Just chn) (Just msg)) xs = (msgChannel usr chn msg xs , xs)
 respond (Privmsg usr (Just _) Nothing) xs = ([Err_Notexttosend usr] , xs)
-respond (Privmsg usr Nothing _) xs = ([Err_Norecipient usr "Privmsg"] , xs)
+respond (Privmsg usr Nothing _) xs = ([Err_Norecipient usr "PRIVMSG"] , xs)
 respond (Unknown usr cmd) xs = ([Err_Unknowncommand usr cmd] , xs)
 
 serve' :: Context -> Commands -> Context
@@ -122,6 +122,31 @@ serve :: Commands -> Context
 serve cs = serve' ([] , []) cs
 
 {- Properties -}
+
+prop_join_with_missing_params :: Commands -> User -> Bool
+prop_join_with_missing_params cs usr =
+  let xs = snd $ serve cs in
+  ([Err_Needmoreparams usr "JOIN"] , xs) == serve' ([] , xs) [Join usr Nothing]
+
+prop_part_with_missing_params :: Commands -> User -> Bool
+prop_part_with_missing_params cs usr =
+  let xs = snd $ serve cs in
+  ([Err_Needmoreparams usr "PART"] , xs) == serve' ([] , xs) [Part usr Nothing]
+
+prop_part_with_missing_text :: Commands -> User -> Channel -> Bool
+prop_part_with_missing_text cs usr chn =
+  let xs = snd $ serve cs in
+  ([Err_Notexttosend usr] , xs) == serve' ([] , xs) [Privmsg usr (Just chn) Nothing]
+
+prop_part_with_missing_recipient :: Commands -> User -> String -> Bool
+prop_part_with_missing_recipient cs usr msg =
+  let xs = snd $ serve cs in
+  ([Err_Norecipient usr "PRIVMSG"] , xs) == serve' ([] , xs) [Privmsg usr Nothing (Just msg)]
+
+prop_part_with_unknown_command :: Commands -> User -> String -> Bool
+prop_part_with_unknown_command cs usr cmd =
+  let xs = snd $ serve cs in
+  ([Err_Unknowncommand usr cmd] , xs) == serve' ([] , xs) [Unknown usr cmd]
 
 prop_join_implies_in_channel :: Commands -> User -> Channel -> Bool
 prop_join_implies_in_channel cs usr chn =
