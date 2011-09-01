@@ -2,7 +2,7 @@ module Ircert where
 import Data.List
 import Test.SmallCheck
 
-{- Types -}
+{--- Types ---}
 
 type User = Int
 type Channel = String
@@ -42,7 +42,7 @@ type Responses = [Response]
 type State = [(Channel , Users)]
 type Users = [User]
 
-{- Predicates -}
+{--- Predicates ---}
 
 inUsers :: User -> Users -> Bool
 inUsers = elem
@@ -65,7 +65,7 @@ emptyChannel chn xs = members chn xs == []
 inResponses :: Response -> Responses -> Bool
 inResponses = elem
 
-{- Commands -}
+{--- Commands ---}
 
 joinChannel :: User -> Channel -> State -> Responses
 joinChannel usr chn xs = map (\x -> Evn_Join x usr chn) (usr : members chn xs)
@@ -121,7 +121,9 @@ serveS xs cs = snd $ serve' ([] , xs) cs
 serve :: Commands -> Context
 serve cs = serve' ([] , []) cs
 
-{- Properties -}
+{--- Properties ---}
+
+{- Syntax error total correctness specifications -}
 
 prop_join_with_missing_params :: Commands -> User -> Bool
 prop_join_with_missing_params cs usr =
@@ -148,45 +150,55 @@ prop_part_with_unknown_command cs usr cmd =
   let xs = snd $ serve cs in
   ([Err_Unknowncommand usr cmd] , xs) == serve' ([] , xs) [Unknown usr cmd]
 
+{- Adequacy of predicates -}
+
 prop_join_implies_in_channel :: Commands -> User -> Channel -> Bool
 prop_join_implies_in_channel cs usr chn =
   let xs = snd $ serve cs in
   inChannel usr chn $ serveS xs [Join usr (Just chn)]
-
-prop_all_members_get_join_message :: Commands -> User -> User -> Channel -> Bool
-prop_all_members_get_join_message cs usr joiner chn =
-  let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
-  inResponses (Evn_Join usr joiner chn) $ serveR xs [Join joiner (Just chn)]
-
-prop_joiner_gets_message :: Commands -> User -> Channel -> Bool
-prop_joiner_gets_message cs usr chn =
-  let xs = snd $ serve cs in
-  inResponses (Evn_Join usr usr chn) $ serveR xs [Join usr (Just chn)]
 
 prop_part_implies_not_in_channel :: Commands -> User -> Channel -> Bool
 prop_part_implies_not_in_channel cs usr chn =
   let xs = snd $ serve cs in
   not $ inChannel usr chn $ serveS xs [Part usr (Just chn)]
 
+{- Subscription events go to all subscribers -}
+
+prop_all_members_get_join_message :: Commands -> User -> User -> Channel -> Bool
+prop_all_members_get_join_message cs usr joiner chn =
+  let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
+  inResponses (Evn_Join usr joiner chn) $ serveR xs [Join joiner (Just chn)]
+
 prop_all_members_get_part_message :: Commands -> User -> User -> Channel -> Bool
 prop_all_members_get_part_message cs usr parter chn =
   let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
   inResponses (Evn_Part usr parter chn) $ serveR xs [Part parter (Just chn)]
+
+prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
+prop_all_members_get_privmsg_message cs usr sender chn msg =
+  let xs = snd $ serve (cs ++ [Join usr (Just chn), Join sender (Just chn)]) in
+  inResponses (Evn_Privmsg usr sender chn msg) $ serveR xs [Privmsg sender (Just chn) (Just msg)]
+
+{- Subscription events go to the new subscriber -}
+
+prop_joiner_gets_message :: Commands -> User -> Channel -> Bool
+prop_joiner_gets_message cs usr chn =
+  let xs = snd $ serve cs in
+  inResponses (Evn_Join usr usr chn) $ serveR xs [Join usr (Just chn)]
 
 prop_parter_gets_message :: Commands -> User -> Channel -> Bool
 prop_parter_gets_message cs usr chn =
   let xs = snd $ serve (cs ++ [Join usr (Just chn)]) in
   inResponses (Evn_Part usr usr chn) $ serveR xs [Part usr (Just chn)]
 
+{- Algebraic properties -}
+
 prop_part_left_inverse_of_join :: Commands -> User -> Channel -> Bool
 prop_part_left_inverse_of_join cs usr chn =
   let xs = snd $ serve (cs ++ [Part usr (Just chn)]) in
   serveS xs [Join usr (Just chn), Part usr (Just chn)] == xs
 
-prop_all_members_get_privmsg_message :: Commands -> User -> User -> Channel -> String -> Bool
-prop_all_members_get_privmsg_message cs usr sender chn msg =
-  let xs = snd $ serve (cs ++ [Join usr (Just chn), Join sender (Just chn)]) in
-  inResponses (Evn_Privmsg usr sender chn msg) $ serveR xs [Privmsg sender (Just chn) (Just msg)]
+{--- Property checker --}
 
 header :: String -> IO ()
 header x = putStrLn $ "\n[" ++ x ++ "]"
