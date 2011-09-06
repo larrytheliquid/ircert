@@ -14,7 +14,7 @@ Topic : \str. chn_set_topic = str & chn_set_topic' = none & chn_topic = str & on
 Names : ident
 List : ident
 Invite ... if inviter in invite only channel, toggle the invitable flag on user?
-Kick : \u t. channel_admin(u) & !in_channel'(t) & only in_channel(t)
+Kick : \u t. channel_op(u) & !in_channel'(t) & only in_channel(t)
 
 Sending Messages:
 Private message : ident
@@ -39,3 +39,30 @@ Kill : \u t. server_op(u) & !connected'(t) & only connected(t)
 Ping
 Pong
 Error : \u. !connected'(u) & !in_channel'(u)  & only connected(u), in_channel(u)
+
+Safety:
+G !(banned & !exception & in_channel) 
+G !(!connected & in_channel)
+G !(restricted & channel_op)
+
+channel_invite_only & !in_channel => invited R !in_channel
+channel_invite_only & !in_channel => G (!invited & X !in_channel)
+
+!in_channel => !channel_limit R !in_channel
+
+the next state cannot have disconnected more than one user
+
+Termination:
+G (X ff => ff) # never terminates
+
+Reachability of every predicate (variable value):
+F banned 
+F !banned 
+F in_channel
+... etc
+
+Fairness of every predicate (variable value):
+G F banned 
+G F !banned 
+G F in_channel
+... etc
