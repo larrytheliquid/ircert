@@ -1,0 +1,41 @@
+
+Connection Registration:
+Nick
+User
+Oper
+User mode
+Quit : \u. connected(u) & !connected'(u) & !in_channel'(u) & only connected(u), in_channel(u)
+
+Channel Operations:
+Join : \u. in_channel'(u) & only in_channel(u)
+Part : \u. !in_channel'(u) & only in_channel(u)
+Channel mode
+Topic : \str. chn_set_topic = str & chn_set_topic' = none & chn_topic = str & only (chn_set_topic, chn_topic)
+Names : ident
+List : ident
+Invite ... if inviter in invite only channel, toggle the invitable flag on user?
+Kick : \u t. channel_admin(u) & !in_channel'(t) & only in_channel(t)
+
+Sending Messages:
+Private message : ident
+Notice : ident
+
+Server Queries:
+Motd : ident
+Lusers : ident
+Version : ident
+Stats : ident
+Time : ident
+Admin : ident
+Info : ident
+
+User Based Queries:
+Who : ident
+Whois : ident
+Whowas
+
+Miscellaneous:
+Kill : \u t. server_op(u) & !connected'(t) & only connected(t)
+Ping
+Pong
+Error : \u. !connected'(u) & !in_channel'(u)  & only connected(u), in_channel(u)
